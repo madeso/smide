@@ -153,6 +153,19 @@ std::string transform_string(const std::string& function, const std::string& val
 
 bool generate_rows(const std::string& filename, XMLElement* root, const Output& o)
 {
+    const auto expand = [&filename](const Output& o, const Table& table, const std::string& var_name, XMLElement* elem)
+    {
+        bool status = true;
+        bool first = true;
+        for (const auto& row : table)
+        {
+            if (first) first = false;
+            else o.write_string(o.between);
+
+            status = generate_rows(filename, elem, o.with_var(var_name, row)) && status;
+        }
+        return status;
+    };
     bool status = true;
     for(auto* child = root->FirstChild(); child; child = child->NextSibling())
     {
@@ -194,14 +207,7 @@ bool generate_rows(const std::string& filename, XMLElement* root, const Output& 
                     ERR(elem, "Failed to find prop var");
                 }
 
-                bool first = true;
-                for(const auto& row: found->second)
-                {
-                    if (first) first = true;
-                    else o.write_string(o.between);
-
-                    status = generate_rows(filename, elem, o.with_var(var_name, row)) && status;
-                }
+                status = expand(o,  found->second, var_name, elem) && status;
             }
             else if(name == "var")
             {
@@ -248,23 +254,49 @@ bool generate_rows(const std::string& filename, XMLElement* root, const Output& 
                 h.write_raw("\n};\n");
 
             }
-            else if(name == "data")
+            else if(name == "expand_data")
             {
                 const char* name = elem->Attribute("name");
                 if (name == nullptr)
                 {
                     ERR(elem, "Missing name property in data");
                 }
+                const char* table = elem->Attribute("table");
+                if (table == nullptr)
+                {
+                    ERR(elem, "Failed to find table prop");
+                }
+                const auto& found = o.tables->find(table);
+                if (found == o.tables->end())
+                {
+                    ERR(elem, "Failed to find table " << table);
+                }
+
+                const char* var_name = elem->Attribute("var");
+                if (var_name == nullptr)
+                {
+                    ERR(elem, "Failed to find prop var");
+                }
+
+                const auto num_entries = found->second.size();
+                std::ostringstream out_entries;
+                out_entries << '[' << num_entries << ']';
+
                 const auto& h = o.only_header();
                 h.write_raw("extern ");
                 h.write_raw(name);
+                h.write_string(out_entries.str());
+
                 h.write_raw(";\n");
 
                 const auto& s = o.only_source();
                 s.write_raw(name);
-                s.write_raw(" = [\n");
-                status = generate_rows(filename, elem, s.with_between(", ")) && status;
-                s.write_raw("\n];\n");
+                s.write_string(out_entries.str());
+                s.write_raw(" = {\n");
+
+                status = expand(s.with_between(", "), found->second, var_name, elem) && status;
+
+                s.write_raw("\n};\n");
             }
             else
             {

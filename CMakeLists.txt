@@ -25,7 +25,7 @@ add_library(smide::project_warnings ALIAS runsmide_project_warnings)
 ###############################################################################
 # main lib
 set(src
-    src/smide/cli.cc
+    src/smide/table.cc
     src/smide/tinyxml2.cpp
     src/smide/tinyxml2.h
 )

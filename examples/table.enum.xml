@@ -1,0 +1,34 @@
+<!--
+table driven code gen (in xml)
+https://www.rfleury.com/p/table-driven-code-generation
+
+// example enum
+-->
+
+<file>
+    <tables>
+        <MyEnumTable>
+            <col name="name" />
+            <col name="str" />
+
+            <row name="A" str="A"/>
+            <row name="B" str="B"/>
+            <row name="C" str="C"/>
+        </MyEnumTable>
+    </tables>
+
+    <gen>
+        <enum name="MyEnum">
+            <expand table="MyEnumTable" var="a">
+                MyEnum_<var name="a" col="name"/>,
+            </expand>
+            MyEnum_COUNT
+        </enum>
+
+        <expand_data name="const char * myenum_string_table"
+            table="MyEnumTable" var="a"
+        >
+            <var name="a" col="str" transform="string"/>
+        </expand_data>
+    </gen>
+</file>
