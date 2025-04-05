@@ -24,20 +24,41 @@ add_library(smide::project_warnings ALIAS runsmide_project_warnings)
 
 ###############################################################################
 # main lib
-set(src
-    src/smide/table.cc
-    src/smide/tinyxml2.cpp
-    src/smide/tinyxml2.h
+function(add_smide_tool)
+    set(options)
+    set(oneValueArgs NAME)
+    set(multiValueArgs FILES)
+    cmake_parse_arguments(PARSE_ARGV 0 smide
+        "${options}" "${oneValueArgs}" "${multiValueArgs}"
+    )
+
+    set(src )
+    source_group("" FILES ${smide_FILES})
+    add_executable(${smide_NAME} ${smide_FILES})
+    target_link_libraries(${smide_NAME}
+        PRIVATE
+            smide::project_options
+            smide::project_warnings
+    )
+    target_include_directories(${smide_NAME}
+        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+endfunction()
+
+add_smide_tool(
+    NAME smide_table
+    FILES
+        src/smide/table.cc
+        src/smide/tinyxml2.cpp
+        src/smide/tinyxml2.h
 )
-source_group("" FILES ${src})
-add_executable(smide ${src})
-target_link_libraries(smide
-    PRIVATE
-        smide::project_options
-        smide::project_warnings
+add_smide_tool(
+    NAME smide_template
+    FILES
+        src/smide/template.cc
+        src/smide/tinyxml2.cpp
+        src/smide/tinyxml2.h
 )
-target_include_directories(smide
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-add_executable(smide::smide ALIAS smide)
+
+add_executable(smide::table ALIAS smide_table)
 

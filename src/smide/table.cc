@@ -91,7 +91,6 @@ struct Output
     // Output& operator=(Output&& rhs) = default;
 };
 
-// todo(Gustav): include file and line in the error message
 std::string file_to_error(const std::string& filename, XMLNode* node)
 {
     std::ostringstream ss;
