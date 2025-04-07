@@ -56,9 +56,16 @@ add_smide_tool(
     NAME smide_template
     FILES
         src/smide/template.cc
+)
+add_smide_tool(
+    NAME smide_join
+    FILES
+        src/smide/join.cc
         src/smide/tinyxml2.cpp
         src/smide/tinyxml2.h
 )
 
 add_executable(smide::table ALIAS smide_table)
+add_executable(smide::template ALIAS smide_template)
+add_executable(smide::join ALIAS smide_join)
 

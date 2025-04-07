@@ -5,10 +5,8 @@
 #include <optional>
 
 #include "smide/rapidjson/document.h"
-#include "smide/tinyxml2.h" // v11.0.0
 #include "smide/mustache.hpp"
 
-using namespace tinyxml2;
 using namespace rapidjson;
 
 enum
@@ -19,39 +17,8 @@ enum
     ARG_COUNT
 };
 
+#define ERR(mess) std::cerr << "error: " << mess << "\n"; status = false; continue
 
-std::string file_to_error(const std::string& filename, XMLNode* node)
-{
-    std::ostringstream ss;
-    ss << filename << '(';
-    if (node)
-    {
-        ss << node->GetLineNum();
-    }
-    else
-    {
-        ss << "-1";
-    }
-    ss << "): ";
-    return ss.str();
-}
-
-#define ERR(node, mess) std::cerr << file_to_error(filename, node)<< "error: " << mess << "\n"; status = false; continue
-
-std::optional<std::string> load_mustache(const std::string& str, const kainjow::mustache::data& data)
-{
-    auto input = kainjow::mustache::mustache{ std::string{str.begin(), str.end()} };
-    if (input.is_valid() == false)
-    {
-        const auto& error = input.error_message();
-        std::cerr << "Failed to parse mustache: " << error << "\n";
-        return std::nullopt;
-    }
-
-    input.set_custom_escape([](const std::string& s) { return s; });
-
-    return input.render(data);
-}
 
 kainjow::mustache::data json_to_data(const rapidjson::Value& doc)
 {
@@ -121,83 +88,58 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    const char* const mode_arg = argv[MODE_ARG];
+    const char* const pattern_path = argv[MODE_ARG];
     const char* const input_path = argv[INPUT_FILE];
     const char* const output_path = argv[OUTPUT_FILE];
 
-    bool status = true;
-
-    // parse file
-    do
+    // ================================================================
+    // load json input
+    std::string json_src;
     {
-        XMLDocument doc;
-        const char* const filename = input_path;
-
-        if (doc.LoadFile(filename) != XML_SUCCESS)
+        std::ifstream f(input_path);
+        if(f.good() == false)
         {
-            ERR(nullptr, "Failed to load file `" << filename << "`");
+            std::cerr << "Failed to open " << input_path << "\n";
+            return -1;
         }
+        json_src.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    }
+    rapidjson::Document json;
+    json.Parse<kParseCommentsFlag | kParseTrailingCommasFlag | kParseNanAndInfFlag>(json_src.c_str());
+    const auto data = json_to_data(json);
 
-        auto* root = doc.RootElement();
-        if(root == nullptr)
+
+    // ================================================================
+    // load pattern
+    std::string pattern_src;
+    {
+        std::ifstream f(pattern_path);
+        if (f.good() == false)
         {
-            ERR(nullptr, "Missing root");
+            std::cerr << "Failed to open " << pattern_path << "\n";
+            return -1;
         }
+        pattern_src.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    }
+    auto input = kainjow::mustache::mustache{ pattern_src };
+    if (input.is_valid() == false)
+    {
+        const auto& error = input.error_message();
+        std::cerr << "Failed to parse mustache: " << error << "\n";
+        return - 1;
+    }
+    input.set_custom_escape([](const std::string& s) { return s; });
 
-        auto* json_elem = root->FirstChildElement("json");
-        if(json_elem != nullptr)
-        {
-            ERR(root, "Missing json elem");
-        }
 
-        const char* json_src = json_elem->GetText();
-        if(json_src == nullptr)
-        {
-            ERR(json_elem, "Missing json text");
-        }
+    // ================================================================
+    // write output file
+    std::ofstream out(output_path);
+    if (out.good() == false)
+    {
+        std::cerr << "Failed to open file for writing: " << output_path;
+        return -1;
+    }
+    out << input.render(data);
 
-        rapidjson::Document json;
-        json.Parse<kParseCommentsFlag | kParseTrailingCommasFlag | kParseNanAndInfFlag>(json_src);
-        const auto data = json_to_data(json);
-
-        std::map<std::string, std::string> patterns;
-        constexpr const char* pattern = "pattern";
-        for(auto* elem = root->FirstChildElement(pattern); elem != nullptr; elem = elem->NextSiblingElement(pattern))
-        {
-            const char* name = elem->Attribute("name");
-            if(name == nullptr)
-            {
-                ERR(elem, "missing name attribute");
-            }
-
-            const char* text = elem->GetText();
-            if(text == nullptr)
-            {
-                ERR(elem, "elem is missing text");
-            }
-            patterns.insert({ name, text });
-        }
-
-        const auto requested_pattern = patterns.find(mode_arg);
-
-        if(requested_pattern == patterns.end())
-        {
-            ERR(root, "Requested pattern not found: " << mode_arg);
-        }
-
-        const auto loaded = load_mustache(requested_pattern->second, data);
-        if(loaded.has_value() == false)
-        {
-            ERR(nullptr, "failed to generate");
-        }
-
-        std::ofstream out(output_path);
-        if(out.good() == false)
-        {
-            ERR(nullptr, "Failed to open file for writing: " << output_path);
-        }
-        out << *loaded;
-    } while (false);
-
-    return status ? 0 : -2;
+    return 0;
 }
