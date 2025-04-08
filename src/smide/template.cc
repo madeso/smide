@@ -11,6 +11,7 @@ using namespace rapidjson;
 
 enum
 {
+    APP_NAME_ARG,
     MODE_ARG,
     INPUT_FILE,
     OUTPUT_FILE,

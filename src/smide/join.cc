@@ -9,6 +9,7 @@ using namespace tinyxml2;
 
 enum
 {
+    APP_NAME_ARG,
     OUTPUT_FILE,
     MODE_ARG,
     MACRO_ARG,
