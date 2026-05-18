@@ -8,7 +8,7 @@ if(NOT DEFINED CODEGEN_MASTER_PROJECT)
 endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-project(smide)
+project(smide C CXX)
 
 ###############################################################################
 # common properties
